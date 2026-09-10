@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VisiPulse — Monitoring Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base:   '#0E1620',
+          panel:  '#16212C',
+          raised: '#1C2A38',
+          hair:   '#26323E',
+          ink:    '#E7EDF3',
+          muted:  '#87A0B4',
+          signal: '#45D6B5',
+          warn:   '#E8A33D',
+          crit:   '#E1585A',
+          info:   '#5B9BD1',
+        },
+        fontFamily: {
+          sans: ['"IBM Plex Sans"', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body {
+    background:
+      radial-gradient(circle at 10% 0%, rgba(69,214,181,0.05), transparent 35%),
+      radial-gradient(circle at 90% 100%, rgba(91,155,209,0.05), transparent 35%),
+      #0E1620;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #26323E; border-radius: 4px; }
+
+  .bracket { position: relative; }
+  .bracket::before, .bracket::after {
+    content: ''; position: absolute; width: 10px; height: 10px;
+    border-color: rgba(69,214,181,0.5); border-style: solid; border-width: 0;
+  }
+  .bracket::before { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; }
+  .bracket::after { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+
+  .nav-item.active { background: #1C2A38; color: #E7EDF3; border-left-color: #45D6B5; }
+  .nav-item { border-left: 2px solid transparent; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  table.data th { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.03em; color: #87A0B4; font-weight: 500; text-align: left; padding: 10px 14px; border-bottom: 1px solid #26323E; }
+  table.data td { padding: 11px 14px; border-bottom: 1px solid #1C2A38; font-size: 13px; }
+  table.data tbody tr:hover { background: rgba(255,255,255,0.015); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 3px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; border: 1px solid; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .live-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
+</style>
+</head>
+<body class="font-sans text-ink min-h-screen flex">
+
+<!-- Sidebar -->
+<aside class="w-56 shrink-0 bg-panel border-r border-hair flex flex-col h-screen sticky top-0">
+  <div class="px-5 py-5 border-b border-hair flex items-center gap-2.5">
+    <svg width="26" height="26" viewBox="0 0 34 34" fill="none" class="shrink-0">
+      <circle cx="17" cy="17" r="16" stroke="#26323E" stroke-width="1"/>
+      <path d="M4 17H11L14 9L18 25L21 17H30" stroke="#45D6B5" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="text-sm font-semibold leading-none">VisiPulse</div>
+      <div class="text-[10px] text-muted font-mono mt-1 leading-none">v1.0 console</div>
+    </div>
+  </div>
+
+  <nav class="flex-1 py-3 overflow-y-auto">
+    <button data-section="overview" class="nav-item active w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center gap-2.5">
+      <span>Overview</span>
+    </button>
+    <button data-section="devices" class="nav-item w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center gap-2.5">
+      <span>Devices</span>
+    </button>
+    <button data-section="predictions" class="nav-item w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center justify-between gap-2.5">
+      <span>AI Predictions</span>
+      <span id="navPredictionBadge" class="hidden text-[10px] font-mono bg-warn/15 text-warn px-1.5 py-0.5 rounded-sm"></span>
+    </button>
+    <button data-section="tickets" class="nav-item w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center gap-2.5">
+      <span>Maintenance Tickets</span>
+    </button>
+    <button data-section="security" class="nav-item w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center gap-2.5">
+      <span>Security Logs</span>
+    </button>
+    <button data-section="audit" id="navAudit" class="nav-item w-full text-left px-5 py-2.5 text-sm text-muted hover:text-ink transition-colors flex items-center gap-2.5 hidden">
+      <span>Audit Trail</span>
+    </button>
+  </nav>
+
+  <div class="px-5 py-4 border-t border-hair">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="w-1.5 h-1.5 rounded-full bg-signal live-dot"></span>
+      <span class="text-[11px] font-mono text-muted">API connected</span>
+    </div>
+    <div class="text-sm font-medium" id="sidebarUsername">—</div>
+    <div class="text-[11px] font-mono text-muted mb-3" id="sidebarRole">—</div>
+    <button id="signOutBtn" class="text-[11px] font-mono text-muted hover:text-crit transition-colors">Sign out →</button>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="flex-1 min-w-0">
+  <header class="border-b border-hair px-8 py-5 flex items-center justify-between bg-base/60 backdrop-blur sticky top-0 z-10">
+    <div>
+      <h1 id="pageTitle" class="text-lg font-semibold">Overview</h1>
+      <p id="pageSubtitle" class="text-xs text-muted mt-0.5">Facility-wide equipment health, at a glance</p>
+    </div>
+    <div class="text-right">
+      <div id="clock" class="text-sm font-mono text-muted"></div>
+    </div>
+  </header>
+
+  <div class="p-8">
+
+    <!-- OVERVIEW -->
+    <section id="section-overview" class="section active">
+      <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="bracket bg-panel border border-hair rounded-sm p-4">
+          <div class="text-[11px] font-mono text-muted mb-2">DEVICES ONLINE</div>
+          <div class="text-3xl font-semibold font-mono" id="kpiDevicesOnline">—</div>
+        </div>
+        <div class="bracket bg-panel border border-hair rounded-sm p-4">
+          <div class="text-[11px] font-mono text-muted mb-2">PENDING PREDICTIONS</div>
+          <div class="text-3xl font-semibold font-mono text-warn" id="kpiPending">—</div>
+        </div>
+        <div class="bracket bg-panel border border-hair rounded-sm p-4">
+          <div class="text-[11px] font-mono text-muted mb-2">OPEN TICKETS</div>
+          <div class="text-3xl font-semibold font-mono text-info" id="kpiOpenTickets">—</div>
+        </div>
+        <div class="bracket bg-panel border border-hair rounded-sm p-4">
+          <div class="text-[11px] font-mono text-muted mb-2">CRITICAL RISK (≥85)</div>
+          <div class="text-3xl font-semibold font-mono text-crit" id="kpiCritical">—</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-6">
+        <div class="col-span-2 bg-panel border border-hair rounded-sm">
+          <div class="px-5 py-3.5 border-b border-hair flex items-center justify-between">
+            <h2 class="text-sm font-medium">Devices requiring attention</h2>
+          </div>
+          <div id="overviewAttentionList" class="divide-y divide-hair/60"></div>
+        </div>
+        <div class="bg-panel border border-hair rounded-sm">
+          <div class="px-5 py-3.5 border-b border-hair">
+            <h2 class="text-sm font-medium">Recent activity</h2>
+          </div>
+          <div id="overviewActivityList" class="divide-y divide-hair/60 max-h-[420px] overflow-y-auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEVICES -->
+    <section id="section-devices" class="section">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex gap-2" id="deviceStatusFilters"></div>
+        <button id="btnAddDevice" class="hidden text-xs font-mono bg-signal text-base px-3.5 py-2 rounded-sm hover:opacity-90">+ Register device</button>
+      </div>
+      <div class="bg-panel border border-hair rounded-sm overflow-hidden">
+        <table class="data w-full">
+          <thead><tr>
+            <th>Device</th><th>Category</th><th>Location</th><th>Status</th><th>Last checked</th><th></th>
+          </tr></thead>
+          <tbody id="devicesTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PREDICTIONS -->
+    <section id="section-predictions" class="section">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex gap-2" id="predictionStatusFilters"></div>
+      </div>
+      <div class="bg-panel border border-hair rounded-sm overflow-hidden">
+        <table class="data w-full">
+          <thead><tr>
+            <th>Device</th><th>Risk score</th><th>Predicted issue</th><th>Status</th><th>Generated</th><th>Reviewed by</th><th></th>
+          </tr></thead>
+          <tbody id="predictionsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TICKETS -->
+    <section id="section-tickets" class="section">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex gap-2" id="ticketStatusFilters"></div>
+      </div>
+      <div class="bg-panel border border-hair rounded-sm overflow-hidden">
+        <table class="data w-full">
+          <thead><tr>
+            <th>Ticket</th><th>Device</th><th>Priority</th><th>Status</th><th>Assigned to</th><th>Created</th><th>Scheduled</th><th></th>
+          </tr></thead>
+          <tbody id="ticketsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECURITY LOGS -->
+    <section id="section-security" class="section">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex gap-2" id="securityStatusFilters"></div>
+      </div>
+      <div class="bg-panel border border-hair rounded-sm overflow-hidden">
+        <table class="data w-full">
+          <thead><tr>
+            <th>Device</th><th>Log type</th><th>Severity</th><th>Details</th><th>Timestamp</th>
+          </tr></thead>
+          <tbody id="securityTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section id="section-audit" class="section">
+      <div class="bg-panel border border-hair rounded-sm overflow-hidden">
+        <table class="data w-full">
+          <thead><tr>
+            <th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th>
+          </tr></thead>
+          <tbody id="auditTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- Prediction decision modal -->
+<div id="decisionModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-panel border border-hair rounded-sm w-full max-w-md p-6 bracket">
+    <h3 class="text-sm font-medium mb-1">Review AI prediction</h3>
+    <p class="text-xs text-muted mb-5" id="modalDeviceInfo"></p>
+
+    <div class="mb-4">
+      <label class="block text-[11px] font-mono text-muted mb-1.5">Notes</label>
+      <textarea id="modalNotes" rows="3" class="w-full bg-raised border border-hair rounded-sm px-3 py-2 text-sm outline-none focus:border-signal"></textarea>
+    </div>
+
+    <label class="flex items-center gap-2 mb-5 text-xs text-muted">
+      <input type="checkbox" id="modalOpenTicket" checked class="accent-signal" />
+      Open a maintenance ticket automatically if approved
+    </label>
+
+    <div class="flex gap-2">
+      <button id="modalReject" class="flex-1 text-xs font-mono border border-crit/40 text-crit rounded-sm py-2.5 hover:bg-crit/10">Reject</button>
+      <button id="modalApprove" class="flex-1 text-xs font-mono bg-signal text-base rounded-sm py-2.5 hover:opacity-90">Approve</button>
+    </div>
+    <button id="modalCancel" class="w-full text-center text-[11px] text-muted mt-3 hover:text-ink">Cancel</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
