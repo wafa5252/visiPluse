@@ -5,10 +5,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config import settings
-from database import Base, engine
-from routers import auth, users, devices, sensors, security_logs, predictions, tickets, audit_router
-
+from backend.config import settings
+from backend.database import Base, engine
+from backend.routers import auth, users, devices, sensors, security_logs, predictions, tickets, audit_router
 # Creates tables on first run. For real production use, replace with
 # Alembic migrations so schema changes are versioned and reviewable.
 Base.metadata.create_all(bind=engine)
