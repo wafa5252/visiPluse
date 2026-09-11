@@ -11,3 +11,4 @@ python-dotenv==1.0.1
 
 # Optional, only needed if DATABASE_URL points at MySQL instead of SQLite
 PyMySQL==1.1.1
+streamlit
