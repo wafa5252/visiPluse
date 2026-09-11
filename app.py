@@ -64,8 +64,20 @@ class VisiPulseSecureAI:
 
 ai_engine = VisiPulseSecureAI()
 
-# Sidebar and Role-Based Access Control (RBAC Simulation)
-st.sidebar.title("VisiPulse Enterprise Security")
+# Sidebar Branding: Centered Logo and Professional Governance Description
+st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+try:
+    st.sidebar.image("logo.png", width=160)
+except Exception:
+    st.sidebar.write("VisiPulse")
+st.sidebar.markdown("### VisiPulse Governance")
+st.sidebar.markdown(
+    "<p style='color: gray; font-size: 0.85em; text-align: center;'>"
+    "AI-Driven Predictive Healthcare Intelligence & Secure Hospital Data Governance"
+    "</p>", 
+    unsafe_allow_html=True
+)
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 user_role = st.sidebar.selectbox(
